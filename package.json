@@ -1,0 +1,8 @@
+{
+	"dependencies": {
+		"@types/node": "^24.7.0",
+		"ini": "^5.0.0",
+		"ini-simple-parser": "^1.0.1",
+		"yaml": "^2.8.1"
+	}
+}

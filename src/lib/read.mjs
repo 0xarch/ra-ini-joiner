@@ -1,27 +1,27 @@
-import { parse as parseYaml } from "yaml";
-// import { default as parseIni } from "ini-simple-parser";
-import { parse as parseIni } from "ini";
-import { readFile as Node_readFile } from "node:fs/promises";
-import { extname } from "node:path";
+import { FileManager } from "./file.mjs";
 
-export async function readFile(file_path, { enableInclude=false, enableMacro=false, includeRootPath='', macroRootPath=''} = {}){
+// 全局文件管理器实例，用于向后兼容
+let globalFileManager = null;
+
+/**
+ * 读取文件的函数，保持向后兼容
+ * @param {string} file_path 文件路径
+ * @param {object} options 选项
+ * @returns {Promise<object>} 解析后的文件内容
+ */
+export async function readFile(file_path, { enableInclude = false, enableMacro = false, includeRootPath = '', macroRootPath = '' } = {}) {
     try {
-        let raw_content = await Node_readFile(file_path);
-        let ext_name = extname(file_path);
-        if(ext_name === '.ini') {
-            // console.log('Parsing INI File:',file_path);
-            let parsed_object = parseIni(raw_content.toString());
-            // if(Object.keys(parsed_object).length === 1){ // simple hack to ensure the same behaviour with YAML
-            //     return Object.values(parsed_object)[0];  // should be handled only when including and marcos. dont do it here
-            // }
-            return parsed_object;
+        // 延迟初始化全局文件管理器
+        if (!globalFileManager) {
+            globalFileManager = new FileManager();
         }
-        if(ext_name === '.yaml' || ext_name === '.yml'){
-            // console.log('Parsing YAML File:', file_path);
-            return parseYaml(raw_content.toString());
-        }
-    } catch(e) {
-        console.log('Error while reading file:',file_path);
+
+        return await globalFileManager.readAndParseFile(file_path);
+    } catch (e) {
+        console.log('Error while reading file:', file_path);
         throw e;
     }
 }
+
+// 导出FileManager类，方便直接使用
+readFile.FileManager = FileManager;

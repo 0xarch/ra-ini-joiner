@@ -81,7 +81,8 @@ async function App(argv = ['Console Argument']) {
                 let current_wrap = raw_entries[i];
                 if (current_wrap.key.startsWith('@')) {
                     if (current_wrap.key === '@Inherits') {
-                        let inherit_section = inherit.get(current_wrap.value);
+                        // 传递当前文件名给inherit.get方法
+                        let inherit_section = inherit.get(current_wrap.value, name);
                         raw_entries[i] = Wrap.wrapEntries(Object.entries(inherit_section));
                     } else {
                         let macro_name = current_wrap.key.replace('@', '');

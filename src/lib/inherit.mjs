@@ -10,12 +10,20 @@ export class Inherit {
             return [k, v];
         }));
     }
-    get(inherit_name) {
+    get(inherit_name, current_file = null) {
 
         let [filename, sectionname] = inherit_name.split(':');
 
         if (!sectionname) {
-            throw new Error('继承：参数格式不满足要求 "<filename>:<sectionname>":', inherit_name);
+            throw new Error('继承：参数格式不满足要求 "<filename>:<sectionname>" or "this:<sectionname>":', inherit_name);
+        }
+
+        // 处理this:前缀的情况
+        if (filename === 'this') {
+            if (!current_file) {
+                throw new Error('继承：使用"this:"前缀时必须提供当前文件名');
+            }
+            filename = current_file;
         }
 
         filename = path.normalize(filename);
@@ -26,20 +34,18 @@ export class Inherit {
             throw new Error('继承：请求的文件不存在:',filename);
         }
 
-        // console.log(target_obj);
-
         let target_section = target_obj[sectionname];
 
         if(!target_section){
             throw new Error('继承：请求的节不存在于文件',filename,':',sectionname);
         }
 
-        let target_section_parsed = this.resolve(target_section);
+        let target_section_parsed = this.resolve(target_section, filename);
 
         return target_section_parsed;
     }
 
-    resolve(object){
+    resolve(object, current_file = null){
         let entries = Wrap.wrapEntries(Object.entries(object));
         entries.forEach((wrap,i)=>{
             if(wrap.key === '@Inherits'){
@@ -51,7 +57,7 @@ export class Inherit {
                 }
                 let result = [];
                 inherit_sections.forEach(v => {
-                    let section = this.get(v);
+                    let section = this.get(v, current_file);
                     result.push(...Wrap.wrapEntries(Object.entries(section)));
                 });
                 entries[i] = result;

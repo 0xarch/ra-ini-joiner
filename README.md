@@ -88,7 +88,7 @@ MacroArguments=${0...}
 
 `@Inherits=<relativePath>:<sectionName>`
 
-`relativePath`: 将要被继承的文件的路径，**需要包含文件名**。  
+`relativePath`: 将要被继承的文件的路径，**需要包含文件后缀名**，特别的，若为`this`，则表示当前文件。  
 `sectionName`：将要被继承的小节名。
 
 被继承的节的所有内容将被复制到触发复制的节内 `@Inherits` 的对应位置。

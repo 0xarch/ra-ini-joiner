@@ -3,3 +3,4 @@ output
 project
 test
 pnpm-lock.yaml
+*.config.yaml

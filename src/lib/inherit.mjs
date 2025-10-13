@@ -15,7 +15,7 @@ export class Inherit {
         let [filename, sectionname] = inherit_name.split(':');
 
         if (!sectionname) {
-            throw new Error('继承：参数格式不满足要求 "<filename>:<sectionname>" or "this:<sectionname>":', inherit_name);
+            throw new Error(`继承：在文件 ${current_file} 中：参数格式不满足要求 "<filename>:<sectionname>" or "this:<sectionname>": ${inherit_name}`);
         }
 
         // 处理this:前缀的情况

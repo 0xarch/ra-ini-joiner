@@ -1,3 +1,4 @@
+// 首先在导入部分添加Registry模块导入
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
@@ -6,6 +7,7 @@ import { MacroManager } from "./lib/macro.mjs";
 import { Inherit } from "./lib/inherit.mjs";
 import { Wrap } from "./lib/wrap.mjs";
 import { readFile } from "./lib/read.mjs";
+import { Registery } from "./lib/registry.mjs";
 
 async function App(argv = ['Console Argument']) {
     console.log('Config path:', argv[2]);
@@ -14,7 +16,7 @@ async function App(argv = ['Console Argument']) {
     let config = await readFile(argv[2]);
     let final_string = '';
 
-    let { InputRoot, OutputPath, MacroRoot, Registery, RegisterFile, IsRelease } = config;
+    let { InputRoot, OutputPath, MacroRoot, RegistryTable: registryTableConfig, RegistryFile, IsRelease } = config;
 
     // 初始化文件管理器
     const fileManager = new readFile.FileManager(config);
@@ -41,30 +43,8 @@ async function App(argv = ['Console Argument']) {
     const macroManager = await MacroManager.new(MacroRoot);
     const inherit = new Inherit(file_map);
 
-    // 处理注册表
-    let registery_root = {};
-
-    for (const { Target: register_name, Source: sources, Start } of Registery) {
-        registery_root[register_name] = {};
-        let i = Start ?? 1;
-        sources.forEach(v => {
-            if (file_map.has(v)) {
-                let target_obj = file_map.get(v);
-                let target_sections = Object.keys(target_obj);
-                target_sections.forEach(name => {
-                    registery_root[register_name][i] = name;
-                    i++;
-                });
-            } else {
-                console.warn(`注册表源文件不存在: ${v}`);
-            }
-        });
-    }
-
-    // 将注册表添加到文件映射中
-    file_map.set(RegisterFile, registery_root);
-    // 同时缓存到文件管理器中
-    fileManager.cacheParsedFile(RegisterFile, registery_root);
+    // 使用拆分出的Registry模块处理注册表
+    await Registery.process(file_map, registryTableConfig, RegistryFile, fileManager);
 
     // 排序文件映射
     let sorted_file_map = new Map([...file_map.entries()].sort((a, b) => {
@@ -91,25 +71,31 @@ async function App(argv = ['Console Argument']) {
                     }
                 }
             }
-            let processed_obj = Object.fromEntries(raw_entries.flat(Infinity).map(v => v.unwrap()));
-            return [section_name, processed_obj];
+            raw_entries = raw_entries.flat(Infinity);
+            // 必需。注意：在上文中继承时实际是将原 Wrap 替换为了继承对象包裹成的 Wrap[]，
+            // 因此需要 flat 展开。
+
+            return [section_name, Object.fromEntries(raw_entries.map(v => v.unwrap()))];
         }));
 
-        // 序列化为INI格式
-        let serialized_result = stringifyIni(processed_obj);
-
         // 添加文件标记（非发布模式）
-        final_string += IsRelease ? `\n` : `\n\n;; ${name}\n\n`;
-        final_string += serialized_result;
+        if (!IsRelease) {
+            let file_info = `; File: ${name}\n`;
+            final_string += file_info;
+        }
+        final_string += stringifyIni(processed_obj);
+        // 添加分隔符
+        final_string += '\n\n';
     }
 
     // 确保输出目录存在
-    await mkdir(dirname(OutputPath), { recursive: true });
+    await mkdir(dirname(OutputPath), {
+        recursive: true
+    });
 
     // 写入输出文件
     await writeFile(OutputPath, final_string);
-
-    console.log(`处理完成，输出文件: ${OutputPath}`);
+    console.log(`完成，已写入到${OutputPath}`);
 }
 
-await App(process.argv);
+App(process.argv);

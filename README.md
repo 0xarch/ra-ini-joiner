@@ -97,18 +97,18 @@ MacroArguments=${0...}
 
 ### 注册表
 
-启用 `CONFIG>Registery` 来定义注册表：
+启用 `CONFIG>RegistryFile` 和 `CONFIG>RegistryTable` 来定义注册表：
 
 ```yaml
-RegisterFile: 09. Registery.ini # 目标文件。生成结果时，注册表将被追加到该文件的输出内容的末尾。如果没有该文件则假定文件内容为空。生成注册表将不修改该文件的源文件。
-Registery:
-  - Target: RegisteryTable1
+RegistryFile: 09. Registry.ini # 目标文件。生成结果时，注册表将被追加到该文件的输出内容的末尾。如果没有该文件则假定文件内容为空。生成注册表将不修改该文件的源文件。
+RegistryTable:
+  - Target: RegistryTable1 # 目标注册表名。生成结果时，将在目标文件内创建一个名为 `[RegistryTable1]` 的小节，将所有源文件内的节名按顺序写入。
     Start: 1 # 可选。默认以1开始
     Source: 
       - SourceFile1.ini #需要文件后缀
       - SourceFile2.yaml
       - ...
-  - Target: RegisteryTable2
+  - Target: RegistryTable2
     Source:
       - SourceFile3.ini
       - ...

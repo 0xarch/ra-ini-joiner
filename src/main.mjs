@@ -41,7 +41,7 @@ async function App(argv = ['Console Argument']) {
 
     // 处理宏和继承
     const macroManager = await MacroManager.new(MacroRoot);
-    const inherit = new Inherit(file_map);
+    const inherit = new Inherit(file_map, macroManager, fileManager);
 
     // 使用拆分出的Registry模块处理注册表
     await Registery.process(file_map, registryTableConfig, RegistryFile, fileManager);

@@ -1,6 +1,7 @@
 node_modules
 output
 project
-test
+test*
 pnpm-lock.yaml
+package-lock.json
 *.config.yaml

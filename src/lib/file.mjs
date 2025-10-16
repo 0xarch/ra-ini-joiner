@@ -182,4 +182,49 @@ export class FileManager {
         this.#parsedContentMap.clear();
         this.#fileExistsMap.clear();
     }
+
+    /**
+     * 将通配符模式转换为正则表达式
+     * @param {string} pattern 通配符模式
+     * @returns {RegExp} 对应的正则表达式
+     */
+    globToRegex(pattern) {
+        // 将通配符转换为正则表达式
+        // * 匹配任意字符（除了路径分隔符）
+        // ** 匹配任意字符（包括路径分隔符）
+        const regexPattern = pattern
+            .replace(/[.+()\[\]{}\\]/g, '\\$&') // 转义特殊字符
+            .replace(/\*\*/g, '.*') // 替换 ** 为 .*
+            .replace(/\*/g, '[^\\/]*'); // 替换 * 为 [^\/]*（不包括路径分隔符）
+        return new RegExp(`^${regexPattern}$`, 'i');
+    }
+
+    /**
+     * 检查路径是否包含通配符
+     * @param {string} path 路径字符串
+     * @returns {boolean} 是否包含通配符
+     */
+    hasWildcard(path) {
+        return path.includes('*');
+    }
+
+    /**
+     * 从文件映射中查找匹配通配符的文件
+     * @param {string} pattern 通配符模式
+     * @param {Map} file_map 文件映射Map
+     * @returns {Array} 匹配的文件路径数组
+     */
+    findMatchingFiles(pattern, file_map) {
+        const regex = this.globToRegex(pattern);
+        const matchingFiles = [];
+        
+        // 从file_map中查找匹配的文件
+        for (const filePath of file_map.keys()) {
+            if (regex.test(filePath)) {
+                matchingFiles.push(filePath);
+            }
+        }
+        
+        return matchingFiles.sort(); // 按文件名排序，确保一致的处理顺序
+    }
 }

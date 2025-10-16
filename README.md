@@ -275,7 +275,6 @@ RegistryTable:
 
 - `@types/node`: Node.js类型定义
 - `ini`: INI文件解析
-- `ini-simple-parser`: 简易INI解析器
 - `yaml`: YAML文件解析
 
 ## 注意事项

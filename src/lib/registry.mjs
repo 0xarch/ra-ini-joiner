@@ -11,6 +11,10 @@
 export async function processRegistery(file_map, registeryConfig, registerFile, fileManager) {
     let registery_root = {};
 
+    if(!registeryConfig) {
+        return registery_root;
+    }
+
     for (const { Target: register_name, Source: sources, Start } of registeryConfig) {
         registery_root[register_name] = {};
         let i = Start ?? 1;

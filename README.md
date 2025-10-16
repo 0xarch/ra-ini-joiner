@@ -249,6 +249,8 @@ RegistryTable:
   ...
 ```
 
+对于没有被预先读取的文件（比如不在项目目录内或以`@`开头的文件，将会尝试以**相对于工作目录**的路径来读取。例如，要读取 `project+project_2>another_file.ini`，则需要将其写为 `project_2>another_file.ini`。这主要被用于动画注册等方面。
+
 支持同时记录多个注册表。
 
 ## 项目结构

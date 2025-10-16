@@ -25,8 +25,8 @@ export async function App(argv = ['Console Argument']) {
     }
 
     let diff_result = {
-        "more": [],
-        "less": []
+        "more": [], // DiffFrom has more than DiffTo
+        "less": [] // DiffTo has more than DiffFrom
     };
     let diff_from_values = Object.values(diff_from_target);
     let diff_to_values = Object.values(diff_to_target);

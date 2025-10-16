@@ -245,6 +245,7 @@ RegistryTable:
   - Target: RegistryTable2
     Source:
       - SourceFile3.ini
+      - Sources2/*.ini # 支持通配符
       - ...
   ...
 ```

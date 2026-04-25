@@ -298,7 +298,7 @@ V2 将包含以下新内容：
 * 支持 JavaScript 宏
 * 内联 JavaScript (待考虑)
 
-[V2宏文档](./DOC.MCPS.md)
+[V2宏文档](./DOC.MCPS.md) [V2配置文档](./DOC.CONF.md)
 
 V2新增的配置项：
 * `IsDetailedConsole` `bool`：在命令行中详细输出所有动作的执行时机。

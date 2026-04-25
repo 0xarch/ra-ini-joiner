@@ -79,7 +79,16 @@ export async function processRegistery(file_map, registeryConfig, registerFile, 
 
 // 保留类的形式以保持向后兼容
 export class Registery {
+    #configuration;
+    #resourceManager;
     static async process(file_map, registeryConfig, registerFile, fileManager) {
         return processRegistery(file_map, registeryConfig, registerFile, fileManager);
     }
+
+    constructor(configuration, resourceManager) {
+        this.#configuration = configuration;
+        this.#resourceManager = resourceManager;
+    }
+
+    
 }

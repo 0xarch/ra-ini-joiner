@@ -11,8 +11,9 @@ export default class Configuration {
         Root: '',
         IgnoreKeys: [''],
         ExplicitKeys: [''],
-        Overrides: {'': []},
+        Overrides: {'': ''},
         DefaultFileSuffix: '',
+        AutoDetect: false
     }
     Registry = {
         File: '',
@@ -25,6 +26,7 @@ export default class Configuration {
         ]
     };
     IgnoreFiles = [];
+    ExplicitRequiredFiles = [];
 
     constructor(argv = process.argv) {
         let configurationFileIsFromConsole = true;
@@ -54,9 +56,11 @@ export default class Configuration {
         this.Macro.ExplicitKeys = this.content.Macro?.ExplicitKeys ?? [];
         this.Macro.Overrides = this.content.Macro?.Overrides ?? {};
         this.Macro.DefaultFileSuffix = this.content.Macro?.DefaultFileSuffix ?? '.ini';
+        this.Macro.AutoDetect = this.content.Macro?.AutoDetect ?? false;
         this.Registry.File = this.content.Registry?.File ?? this.content.RegistryFile ?? '';
         this.Registry.Table = this.content.Registry?.Table ?? this.content.RegistryTable ?? {};
         this.IgnoreFiles = this.content.IgnoreFiles ?? [];
+        this.ExplicitRequiredFiles = this.content.ExplicitRequiredFiles ?? [];
         console.info(`[CONF] 成功读取了配置文件.`);
     }
 }

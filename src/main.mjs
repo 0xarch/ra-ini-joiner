@@ -11,7 +11,6 @@ import { Registery } from "./lib/registry.mjs";
 import Configuration from "./lib/config.mjs";
 import { ResourceManager, source } from "./lib/resource.mjs";
 import { traverseFileWork } from "./lib/workflow.mjs";
-import { config } from "node:process";
 
 async function App(argv = ['Console Argument']) {
     console.log('Config path:', argv[2]);
@@ -123,8 +122,7 @@ async function AppV2(argv = process.argv) {
     console.info.when_detailed(`[MAIN] 正在遍历显式指定的文件...`);
     let all_explicit_files = [];
     {
-        let all_files_unfiltered = configuration.content.ExplicitRequiredFiles ?? [];
-        all_explicit_files = (await Promise.all(all_files_unfiltered.map(path => (async () => {
+        all_explicit_files = (await Promise.all(configuration.ExplicitRequiredFiles.map(path => (async () => {
             let file_stat = await stat(path);
             if (!file_stat.isFile()) {
                 console.warn(`[MAIN] 显式指定的文件 ${path} 不存在或不是文件！该文件被忽略.`);
@@ -138,12 +136,12 @@ async function AppV2(argv = process.argv) {
     console.info.when_detailed(`[MAIN] 正在解析文件...`);
     let output_file_count = 0;
     await Promise.all(all_input_files.map(path => (async () => {
-        let resource = await source(path);
+        let resource = await source(path, configuration);
         if (resource.is_process_only) output_file_count++;
         resourceManager.set(resource.path, resource);
     })()));
     await Promise.all(all_macro_files.map(path => (async () => {
-        let resource = await source(path);
+        let resource = await source(path, configuration);
         if (!resource.is_process_only) {
             resource.is_process_only = true;
             console.info.when_detailed(`[RESC] 因文件 ${path} 位于宏目录 ${configuration.Macro.Root} 中，因此不会被输出.`);
@@ -152,7 +150,7 @@ async function AppV2(argv = process.argv) {
         resourceManager.set(resource.path, resource);
     })()));
     await Promise.all(all_explicit_files.map(path => (async () => {
-        let resource = await source(path);
+        let resource = await source(path, configuration);
         resource.is_process_only = true;
         output_file_count++;
         resourceManager.set(resource.path, resource);
@@ -170,9 +168,11 @@ async function AppV2(argv = process.argv) {
         if (resource.is_process_only) continue;
         console.info.when_detailed(`[MAIN] 最终处理文件 ${path} .`);
         for (const [obj_id, object] of Object.entries(resource.content)) {
+            if(object.___dontexportme___) continue;
             if (!output_object[obj_id])
                 output_object[obj_id] = {};
             for (const [key, value] of Object.entries(object)) {
+                if(key === '___skip_resolve___' || key === '___parameter_macro___') continue;
                 switch (typeof value) {
                     case 'number':
                     case 'boolean':

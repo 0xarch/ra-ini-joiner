@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { parse as parseIni} from "ini";
+import { parse as parseIni } from "ini";
 
 class Resource {
     path = '';
@@ -11,21 +11,21 @@ class Resource {
     is_process_only = false;
 
     constructor(path) {
-        if(!path) {
+        if (!path) {
             console.info('[CRIT] 初始化资源文件时遇到错误：检测到空文件名');
             process.exit(2);
         }
         this.path = path;
         let file_type = extname(path);
-        if(dirname(path).includes('@')){
+        if (dirname(path).includes('@')) {
             console.info.when_detailed(`[RESC] 因文件路径包含 @，文件 ${path} 将不会被输出.`);
             this.is_process_only = true;
         }
-        if(basename(path).startsWith('@')) {
+        if (basename(path).startsWith('@')) {
             console.info.when_detailed(`[RESC] 因文件名以 @ 开头，文件 ${path} 将不会被输出.`);
             this.is_process_only = true;
         }
-        switch(file_type) {
+        switch (file_type) {
             case '.ini': {
                 this.type = ResourceTypes.INI;
                 break;
@@ -47,14 +47,26 @@ class Resource {
         }
     }
 
-    async init() {
+    async init(configuration) {
         try {
             let content = (await readFile(this.path)).toString();
             this.text_content = content;
             let parsed_content = {};
-            switch(this.type) {
+            switch (this.type) {
                 case ResourceTypes.INI: {
                     parsed_content = parseIni(content);
+                    // handle special macro
+                    for (let [section_name, section] of Object.entries(parsed_content)) {
+                        for (const [key, value] of Object.entries(section)) {
+                            if (key.endsWith(':')) {
+                                let e_key = key.substring(0, key.length - 1);
+                                if ((e_key.startsWith('@') || configuration.Macro.ExplicitKeys.includes(e_key)) && !configuration.Macro.IgnoreKeys.includes(e_key)) {
+                                    let new_section = Object.fromEntries(Object.entries(section).map(([k, v]) => k === key ? [e_key, v.split(',')] : [k, v]));
+                                    parsed_content[section_name] = new_section;
+                                }
+                            }
+                        }
+                    }
                     break;
                 }
                 case ResourceTypes.YAML: {
@@ -63,7 +75,7 @@ class Resource {
                 }
                 case ResourceTypes.JAVASCRIPT: {
                     console.info(`[RESC] 检测到 JavaScript 模块 ${this.path} ，尝试导入...`);
-                    let func = (await import(join(process.cwd(),this.path)));
+                    let func = (await import(join(process.cwd(), this.path)));
                     let func_default = func.default
                     parsed_content = {
                         [basename(this.path)]: func_default,
@@ -77,11 +89,11 @@ class Resource {
                 }
             }
             this.content = parsed_content;
-            if(parsed_content['@']) {
+            if (parsed_content['@']) {
                 this.is_process_only = true;
                 console.info.when_detailed(`[RESC] 因文件包含 @ 小节，文件 ${path} 将不会被输出.`);
             }
-        } catch(e) {
+        } catch (e) {
             console.info('[CRIT] 初始化资源文件时出现错误！');
             console.error(e);
             process.exit(4);
@@ -96,9 +108,9 @@ export const ResourceTypes = {
     INVALID: Symbol('resource_types:invalid'),
 }
 
-export const source = async (path) => {
+export const source = async (path, configuration) => {
     let resource = new Resource(path);
-    await resource.init();
+    await resource.init(configuration);
     return resource;
 };
 
@@ -108,7 +120,7 @@ export class ResourceManager {
      */
     resources = new Map();
 
-    constructor(existed_map = []){
+    constructor(existed_map = []) {
         this.resources = new Map(existed_map);
     }
 

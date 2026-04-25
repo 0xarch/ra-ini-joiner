@@ -527,6 +527,7 @@ export default class MacroLib {
                             keys = Array.from({length:Math.min(obj.to, parameters.length)}).fill('');
                         }
                     });
+                    let min = Infinity, max = -Infinity;
                     key_sequence.forEach(char_or_obj => {
                         if (typeof char_or_obj === 'string') {
                             keys = keys.map(key => key + char_or_obj);
@@ -534,12 +535,15 @@ export default class MacroLib {
                             keys = keys.map((key, i) => {
                                 i+=1;
                                 if(char_or_obj.from <= i && char_or_obj.to >= i) {
+                                    min = Math.min(min,char_or_obj.from);
+                                    max = Math.max(max,char_or_obj.to);
                                     return key + parameters[i-1];
                                 }
                                 return key;
                             });
                         }
                     });
+                    keys = keys.slice(min-1,max-1);
                     keys.forEach(key => {
                         result[key] = value_sequences[key_i](parameters);
                     })

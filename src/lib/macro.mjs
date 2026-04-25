@@ -70,6 +70,8 @@ import { basename, join, extname, dirname } from "node:path";
 import { join as joinUnix } from "node:path/posix";
 import { statSync } from "node:fs";
 import { readFile } from "./read.mjs";
+import { ResourceManager, ResourceTypes } from "./resource.mjs";
+import Configuration from "./config.mjs";
 
 export class MacroManager {
     /**
@@ -404,4 +406,158 @@ export class MacroManager {
         return Object.fromEntries(parsedEntries);
     }
 
+}
+
+export default class MacroLib {
+    /**
+     * @type {Configuration}
+     */
+    #configuration;
+    /**
+     * @type {ResourceManager}
+     */
+    #resourceManager;
+    cached_macros = new Map();
+
+    constructor(configuration, resourceManager) {
+        this.#configuration = configuration;
+        this.#resourceManager = resourceManager;
+    }
+
+    init_macro(path, name) {
+        let file_content = this.#resourceManager.get(path);
+        console.log(file_content);
+    }
+
+    get_macro(path, name) {
+        let macro_id = this.get_macro_id(path, name);
+        if (this.cached_macros.has(macro_id)) {
+            return this.cached_macros.get(macro_id);
+        }
+        let macro = this.init_macro(path, name);
+        this.cached_macros.set(macro_id, macro);
+        return macro;
+    }
+
+    get_macro_id(path, name) {
+        return `V2_Macro:${path}#${name}`;
+    }
+
+    async resolve_all() {
+        let files = this.#resourceManager.resources.entries();
+        console.info.when_detailed(`[MCPS] 正在处理所有文件中的宏.`);
+        await Promise.all(files.map(([path, resource]) => (async () => {
+            await this.resolve(path, resource);
+        })()));
+        console.info.when_detailed(`[MCPS] 所有文件中的宏均处理完毕.`);
+    }
+
+    /**
+     * 
+     * @param {string} path 
+     * @param {Awaited<ReturnType<import("./resource.mjs").source>>} resource 
+     */
+    async resolve(path, resource) {
+        if (resource.type === ResourceTypes.INVALID) {
+            // 跳过 JS
+            return;
+        }
+        if (resource.is_process_only) {
+            // 减少引用大文件时的不必要性能损耗
+            return;
+        }
+        console.info.when_detailed(`[MCPS] 正在处理文件 ${path} 中的宏.`);
+        await Promise.all(Object.entries(resource.content).map(([section_name, _]) => (async () => {
+            await this.resolve_section(path, section_name);
+        })()));
+        console.info.when_detailed(`[MCPS] 文件 ${path} 中的宏处理完毕.`);
+    }
+
+    async resolve_section(path, section_name) {
+        let resource = this.#resourceManager.get(path);
+        if (resource.type === ResourceTypes.JAVASCRIPT) {
+            // handle javascript
+            return;
+        }
+        const section = this.#resourceManager.get(path).content[section_name];
+        let keys_unfiltered = Object.keys(section);
+        let keys_required = keys_unfiltered
+            .filter((key) => key.startsWith('@') || this.#configuration.Macro.ExplicitKeys.includes(key))
+            .filter((key) => !this.#configuration.Macro.IgnoreKeys.includes(key));
+        if (keys_required.length === 0)
+            return;
+
+        let all_overrided_keys = Object.keys(this.#configuration.Macro.Overrides);
+        let flat_keys = [];
+        await Promise.all(keys_required.map((key) => (async () => {
+            // ensure target section is fully macro-ized
+            let target_path = '', target_section = '';
+            if (all_overrided_keys.includes(key)) {
+                let overrided_resource_loc = String(this.#configuration.Macro.Overrides[key]).split(':');
+                if (overrided_resource_loc.length !== 2) {
+                    console.warn(`[MCPS] 自定义的宏覆写 ${this.#configuration.Macro.Overrides[key]} 无法被识别为合法的标签！已忽略.`);
+                    return;
+                }
+                [target_path, target_section] = overrided_resource_loc;
+            } else {
+                if (key.includes(':')) {
+                    // @File:Foo
+                    [target_path, target_section] = key.substring(1).split(':');
+                } else {
+                    // @Foo
+                    target_path = target_section = key.substring(1);
+                }
+                let relative_target_path = join(path, target_path);
+                if (this.#resourceManager.resources.has(relative_target_path)) {
+                    target_path = relative_target_path;
+                } else {
+                    target_path = join(this.#configuration.Macro.Root, target_path);
+                    if (!extname(target_path)) target_path += this.#configuration.Macro.DefaultFileSuffix;
+                    if (!this.#resourceManager.resources.has(target_path)) {
+                        console.warn(`[MCPS] 为 ${path}:${section_name} 中的 ${key} 查找宏 ${target_path}:${target_section} 时出现错误：文件 ${target_path} 不存在或没有被索引！`);
+                        return;
+                    }
+                }
+            }
+            console.info(`[MCPS] 为 ${path}:${section_name} 中的 ${key} 查找宏 ${target_path}:${target_section}`);
+            await this.resolve_section(target_path, target_section);
+            let insert_section = this.#resourceManager.get(target_path).content[target_section];
+            flat_keys.push(key);
+            if (typeof insert_section === 'function') {
+                console.info.when_detailed(`[MCPS] 尝试使用函数解析 ${target_path}:${target_section}`);
+                let parameters = section[key];
+                if (!Array.isArray(parameters)) {
+                    parameters = String(parameters).split(',');
+                }
+                insert_section = insert_section(...parameters);
+            }
+            section[key] = insert_section;
+        })()));
+        // do flatten
+        let flat_keys_ordered = keys_required.filter(key => flat_keys.includes(key));
+
+        console.info(`[MCPS] 为 ${path}:${section_name} 中的 ${flat_keys} 进行替换.`);
+        const original_section_keys = Object.keys(section);
+        const new_entries = [];
+
+        for (const key of original_section_keys) {
+            if (flat_keys_ordered.includes(key)) {
+                const content = section[key];
+                if (content && typeof content === 'object') {
+                    for (const subKey of Object.keys(content)) {
+                        new_entries.push([subKey, content[subKey]]);
+                    }
+                }
+            } else {
+                new_entries.push([key, section[key]]);
+            }
+        }
+        for (const key of original_section_keys) {
+            delete section[key];
+        }
+        for (const [key, value] of new_entries) {
+            section[key] = value;
+        }
+        console.info(`[MCPS] 成功为 ${path}:${section_name} 中的 ${flat_keys} 替换.`);
+    }
 }

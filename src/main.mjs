@@ -1,13 +1,17 @@
 // 首先在导入部分添加Registry模块导入
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import { statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { stringify as stringifyIni } from "ini";
-import { MacroManager } from "./lib/macro.mjs";
+import MacroLib, { MacroManager } from "./lib/macro.mjs";
 import { Inherit } from "./lib/inherit.mjs";
 import { Wrap } from "./lib/wrap.mjs";
 import { readFile } from "./lib/read.mjs";
 import { Registery } from "./lib/registry.mjs";
+import Configuration from "./lib/config.mjs";
+import { ResourceManager, source } from "./lib/resource.mjs";
+import { traverseFileWork } from "./lib/workflow.mjs";
+import { config } from "node:process";
 
 async function App(argv = ['Console Argument']) {
     console.log('Config path:', argv[2]);
@@ -53,7 +57,7 @@ async function App(argv = ['Console Argument']) {
 
     // 处理每个文件的内容
     for (const [name, obj] of sorted_file_map) {
-        let processed_obj = Object.fromEntries(Object.entries(obj).map(([section_name, section_values]) => {
+        let processed_obj = Object.fromEntries(await Promise.all(Object.entries(obj).map(async ([section_name, section_values]) => {
             // 处理宏和继承
             let raw_entries = Object.entries(section_values).map(v => new Wrap(...v));
             let raw_length = raw_entries.length;
@@ -62,7 +66,7 @@ async function App(argv = ['Console Argument']) {
                 if (current_wrap.key.startsWith('@')) {
                     if (current_wrap.key === '@Inherits') {
                         // 传递当前文件名给inherit.get方法
-                        let inherit_section = inherit.get(current_wrap.value, name);
+                        let inherit_section = await inherit.get(current_wrap.value, name);
                         raw_entries[i] = Wrap.wrapEntries(Object.entries(inherit_section));
                     } else {
                         let macro_name = current_wrap.key.replace('@', '');
@@ -76,7 +80,7 @@ async function App(argv = ['Console Argument']) {
             // 因此需要 flat 展开。
 
             return [section_name, Object.fromEntries(raw_entries.map(v => v.unwrap()))];
-        }));
+        })));
 
         // 添加文件标记（非发布模式）
         if (!IsRelease) {
@@ -98,4 +102,104 @@ async function App(argv = ['Console Argument']) {
     console.log(`完成，已写入到${OutputPath}`);
 }
 
-App(process.argv);
+async function AppV2(argv = process.argv) {
+    let configuration = new Configuration(argv);
+    await configuration.init();
+
+    // spec-options
+    console.info.when_detailed = configuration.content.IsDetailedConsole ? console.info : () => { };
+    console.warn.when_detailed = configuration.content.IsDetailedConsole ? console.warn : () => { };
+
+    const resourceManager = new ResourceManager();
+
+    console.info.when_detailed(`[MAIN] 正在遍历 ${configuration.InputRoot} 中的文件...`);
+    let [all_input_files, ignore_input_file_count] = await traverseFileWork(configuration.InputRoot, configuration.IgnoreFiles);
+    console.info(`[MAIN] 成功遍历了 ${configuration.InputRoot} 中的 ${all_input_files.length} 个文件, 忽略了 ${ignore_input_file_count} 个文件/文件夹.`);
+
+    console.info.when_detailed(`[MAIN] 正在遍历 ${configuration.Macro.Root} 中的文件...`);
+    let [all_macro_files, ignore_macro_file_count] = await traverseFileWork(configuration.Macro.Root, configuration.IgnoreFiles);
+    console.info(`[MAIN] 成功遍历了 ${configuration.Macro.Root} 中的 ${all_macro_files.length} 个文件, 忽略了 ${ignore_macro_file_count} 个文件/文件夹.`);
+
+    console.info.when_detailed(`[MAIN] 正在遍历显式指定的文件...`);
+    let all_explicit_files = [];
+    {
+        let all_files_unfiltered = configuration.content.ExplicitRequiredFiles ?? [];
+        all_explicit_files = (await Promise.all(all_files_unfiltered.map(path => (async () => {
+            let file_stat = await stat(path);
+            if (!file_stat.isFile()) {
+                console.warn(`[MAIN] 显式指定的文件 ${path} 不存在或不是文件！该文件被忽略.`);
+                return null;
+            }
+            return path;
+        })()))).filter(Boolean);
+    }
+    console.info.when_detailed(`[MAIN] 成功遍历了显式指定的文件.`);
+
+    console.info.when_detailed(`[MAIN] 正在解析文件...`);
+    let output_file_count = 0;
+    await Promise.all(all_input_files.map(path => (async () => {
+        let resource = await source(path);
+        if (resource.is_process_only) output_file_count++;
+        resourceManager.set(resource.path, resource);
+    })()));
+    await Promise.all(all_macro_files.map(path => (async () => {
+        let resource = await source(path);
+        if (!resource.is_process_only) {
+            resource.is_process_only = true;
+            console.info.when_detailed(`[RESC] 因文件 ${path} 位于宏目录 ${configuration.Macro.Root} 中，因此不会被输出.`);
+        }
+        output_file_count++;
+        resourceManager.set(resource.path, resource);
+    })()));
+    await Promise.all(all_explicit_files.map(path => (async () => {
+        let resource = await source(path);
+        resource.is_process_only = true;
+        output_file_count++;
+        resourceManager.set(resource.path, resource);
+    })()));
+    console.info(`[MAIN] 成功解析了 ${resourceManager.resources.size} 个文件，其中 ${output_file_count} 个文件将不会被输出.`);
+
+    console.info.when_detailed(`[MAIN] 开始处理宏.`);
+    let macroLib = new MacroLib(configuration, resourceManager);
+    await macroLib.resolve_all();
+    console.info(`[MAIN] 完成处理宏.`);
+
+    console.info.when_detailed(`[MAIN] 开始最终处理.`);
+    let output_object = {};
+    for (const [path, resource] of resourceManager.resources) {
+        if (resource.is_process_only) continue;
+        console.info.when_detailed(`[MAIN] 最终处理文件 ${path} .`);
+        for (const [obj_id, object] of Object.entries(resource.content)) {
+            if (!output_object[obj_id])
+                output_object[obj_id] = {};
+            for (const [key, value] of Object.entries(object)) {
+                switch (typeof value) {
+                    case 'number':
+                    case 'boolean':
+                    case 'string': {
+                        output_object[obj_id][key] = value;
+                        break;
+                    }
+                    case 'object': {
+                        if (Array.isArray(value)) {
+                            output_object[obj_id][key] = value;
+                            break;
+                        }
+                    }
+                    default:
+                        console.warn(`[MAIN] 检测到未支持的数据类型 ${typeof value} ！请检查文件 ${path} 中的 [${obj_id}]#${key}.\n       注意这可能由宏引起.`);
+                }
+            }
+        }
+        console.info.when_detailed(`[MAIN] 文件 ${path} 最终处理完毕.`);
+    }
+    console.info(`[MAIN] 最终处理完毕.`);
+
+    let final_string = stringifyIni(output_object);
+    await mkdir(dirname(configuration.OutputPath),{
+        recursive: true
+    });
+    await writeFile(configuration.OutputPath, final_string);
+}
+
+AppV2(process.argv);

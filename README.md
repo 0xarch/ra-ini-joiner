@@ -284,3 +284,22 @@ RegistryTable:
 2. 宏文件不应以`@`开头，否则会被忽略
 3. 注册表生成不会修改源文件，只会追加到输出文件末尾
 4. 如有问题，请检查控制台输出的错误信息
+
+# RA-INI-Joiner V2
+
+纯人力从零重构！正在开发中。
+
+V2 将包含以下新内容：
+
+* 更详细的输出提示
+* 更好的继承机制
+* 支持 JavaScript 宏
+* 内联 JavaScript (待考虑)
+
+V2新增的配置项：
+* `IsDetailedConsole` `bool`：在命令行中详细输出所有动作的执行时机。
+* `Registry` `object`：现在 `RegistryFile` 被改为 `Registry.File`， `RegistryTable` 被改为 `Registry.Table`。旧格式仍然支持。
+* `Macro` `object`：现在 `MacroRoot` 被改为 `Macro.Root`。旧格式仍然支持。
+* `ExplicitRequiredFiles` `array<string>`：显式指定项目引用了哪些不在 `InputRoot` 和 `Macro.Root` 中的文件。V2将不会尝试自动读取未索引的文件。`ExplicitRequiredFiles`中的所有文件都不会被写入最终输出。
+V2移除的配置项：
+* `IsRelease` `bool`：在输出中写入文件名。(现在不会写入)

@@ -11,7 +11,7 @@ export default class Configuration {
         Root: '',
         IgnoreKeys: [''],
         ExplicitKeys: [''],
-        Overrides: {'': ''},
+        Overrides: { '': '' },
         DefaultFileSuffix: '',
         AutoDetect: false
     }
@@ -58,7 +58,15 @@ export default class Configuration {
         this.Macro.DefaultFileSuffix = this.content.Macro?.DefaultFileSuffix ?? '.ini';
         this.Macro.AutoDetect = this.content.Macro?.AutoDetect ?? false;
         this.Registry.File = this.content.Registry?.File ?? this.content.RegistryFile ?? '';
-        this.Registry.Table = this.content.Registry?.Table ?? this.content.RegistryTable ?? {};
+        this.Registry.Table =
+            Array.from(this.content.Registry?.Table ?? this.content.RegistryTable ?? []).map((object) => {
+                if (!Array.isArray(object.Source)) return null;
+                return {
+                    Target: object.Target ?? '',
+                    Start: object.Start ?? 1,
+                    Source: object.Source
+                }
+            }).filter(Boolean);
         this.IgnoreFiles = this.content.IgnoreFiles ?? [];
         this.ExplicitRequiredFiles = this.content.ExplicitRequiredFiles ?? [];
         console.info(`[CONF] 成功读取了配置文件.`);

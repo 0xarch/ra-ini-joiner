@@ -7,7 +7,7 @@ import MacroLib, { MacroManager } from "./lib/macro.mjs";
 import { Inherit } from "./lib/inherit.mjs";
 import { Wrap } from "./lib/wrap.mjs";
 import { readFile } from "./lib/read.mjs";
-import { Registery } from "./lib/registry.mjs";
+import { Registry } from "./lib/registry.mjs";
 import Configuration from "./lib/config.mjs";
 import { ResourceManager, source } from "./lib/resource.mjs";
 import { traverseFileWork } from "./lib/workflow.mjs";
@@ -47,7 +47,7 @@ async function App(argv = ['Console Argument']) {
     const inherit = new Inherit(file_map, macroManager, fileManager);
 
     // 使用拆分出的Registry模块处理注册表
-    await Registery.process(file_map, registryTableConfig, RegistryFile, fileManager);
+    await Registry.process(file_map, registryTableConfig, RegistryFile, fileManager);
 
     // 排序文件映射
     let sorted_file_map = new Map([...file_map.entries()].sort((a, b) => {
@@ -162,17 +162,22 @@ async function AppV2(argv = process.argv) {
     await macroLib.resolve_all();
     console.info(`[MAIN] 完成处理宏.`);
 
+    console.info.when_detailed(`[MAIN] 开始处理注册表.`);
+    let registry = new Registry(configuration, resourceManager);
+    await registry.process_all();
+    console.info(`[MAIN] 注册表处理完毕.`);
+
     console.info.when_detailed(`[MAIN] 开始最终处理.`);
     let output_object = {};
-    for (const [path, resource] of resourceManager.resources) {
+    for (const [path, resource] of resourceManager.get_sorted_resources()) {
         if (resource.is_process_only) continue;
         console.info.when_detailed(`[MAIN] 最终处理文件 ${path} .`);
         for (const [obj_id, object] of Object.entries(resource.content)) {
-            if(object.___dontexportme___) continue;
+            if (object.___dontexportme___) continue;
             if (!output_object[obj_id])
                 output_object[obj_id] = {};
             for (const [key, value] of Object.entries(object)) {
-                if(key === '___skip_resolve___' || key === '___parameter_macro___') continue;
+                if (key === '___skip_resolve___' || key === '___parameter_macro___') continue;
                 switch (typeof value) {
                     case 'number':
                     case 'boolean':
@@ -183,6 +188,9 @@ async function AppV2(argv = process.argv) {
                     case 'object': {
                         if (Array.isArray(value)) {
                             output_object[obj_id][key] = value;
+                            break;
+                        }
+                        if (value === null) {
                             break;
                         }
                     }
@@ -196,7 +204,7 @@ async function AppV2(argv = process.argv) {
     console.info(`[MAIN] 最终处理完毕.`);
 
     let final_string = stringifyIni(output_object);
-    await mkdir(dirname(configuration.OutputPath),{
+    await mkdir(dirname(configuration.OutputPath), {
         recursive: true
     });
     await writeFile(configuration.OutputPath, final_string);

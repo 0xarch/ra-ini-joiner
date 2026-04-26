@@ -3,17 +3,21 @@ import { basename, dirname, extname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { parse as parseIni } from "ini";
 
-class Resource {
+export class Resource {
     path = '';
     type = ResourceTypes.INI;
     text_content = '';
     content = {};
     is_process_only = false;
 
-    constructor(path) {
+    constructor(path, virtual_path = false) {
         if (!path) {
             console.info('[CRIT] 初始化资源文件时遇到错误：检测到空文件名');
             process.exit(2);
+        }
+        if (virtual_path) {
+            this.path = path;
+            this.type = ResourceTypes.INI;
         }
         this.path = path;
         let file_type = extname(path);
@@ -132,5 +136,14 @@ export class ResourceManager {
     }
     delete(path) {
         this.resources.delete(path);
+    }
+    get_sorted_resources() {
+        const sorted_keys = [...this.resources.keys()].sort();
+
+        const sorted_resources = new Map();
+        sorted_keys.forEach(key => {
+            sorted_resources.set(key, this.resources.get(key));
+        });
+        return sorted_resources;
     }
 }

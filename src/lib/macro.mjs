@@ -1,4 +1,4 @@
-import { join, extname } from "node:path";
+import { join, extname, dirname } from "node:path";
 import { ResourceManager, ResourceTypes } from "./resource.mjs";
 import Configuration from "./config.mjs";
 
@@ -107,7 +107,6 @@ export default class MacroLib {
                     let i = 0;
                     while (this.#REGEXES.SIMPLE_MATCHALL.test(result)) {
                         result = result.replace(`\$${i + 1}`, parameters[i++]);
-                        console.log(result);
                     }
                 }
                 return result;
@@ -229,6 +228,7 @@ export default class MacroLib {
             // ensure target section is fully macro-ized
             let target_path = '', target_section = '';
             if (all_overrided_keys.includes(key)) {
+                console.info.when_detailed(`[MCPS] 在 ${path}:${section_name} 中检测到被映射的宏 ${key} . 正在解析.`);
                 let overrided_resource_loc = String(this.#configuration.Macro.Overrides[key]).split(':');
                 if (overrided_resource_loc.length !== 2) {
                     console.warn(`[MCPS] 自定义的宏覆写 ${this.#configuration.Macro.Overrides[key]} 无法被识别为合法的标签！已忽略.`);
@@ -252,10 +252,11 @@ export default class MacroLib {
                     // @Foo
                     target_path = target_section = key.substring(1);
                 }
-                let relative_target_path = join(path, target_path);
+                let relative_target_path = join(dirname(path), target_path);
                 if (this.#resourceManager.resources.has(relative_target_path)) {
                     target_path = relative_target_path;
                 } else {
+                    console.warn.when_detailed(`[MCPS] 尝试为 ${path}:${section_name} 中的 ${key} 从文件处查找 ${relative_target_path} , 但失败了.`);
                     target_path = join(this.#configuration.Macro.Root, target_path);
                     if (!extname(target_path)) target_path += this.#configuration.Macro.DefaultFileSuffix;
                     if (!this.#resourceManager.resources.has(target_path)) {

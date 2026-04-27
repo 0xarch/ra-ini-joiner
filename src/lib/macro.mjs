@@ -92,12 +92,22 @@ export default class MacroLib {
         let value_sequences = Array.from(section_values).map(v => {
             if (!this.#REGEXES.SIMPLE_MATCHALL.test(v)) return () => v;
             return (parameters) => {
-                console.log(3.1);
                 let result = v;
                 if (typeof v === 'string') {
+                    result = result.replaceAll(/\$([0-9])\.\.\.\$([0-9nN])/g, (_match, a, b) => {
+                        if (b.includes('N') || b.includes('n')) b = parameters.length;
+                        a = Number(a); b = Number(b);
+                        let ret_str = '$' + a++;
+                        while (a <= b) {
+                            ret_str += ',$' + String(a);
+                            a++;
+                        }
+                        return ret_str;
+                    });
                     let i = 0;
                     while (this.#REGEXES.SIMPLE_MATCHALL.test(result)) {
                         result = result.replace(`\$${i + 1}`, parameters[i++]);
+                        console.log(result);
                     }
                 }
                 return result;
@@ -145,6 +155,9 @@ export default class MacroLib {
                 }
                 i++;
             }
+            delete result.___dontexportme___;
+            delete result.___skip_resolve___;
+            delete result.___parameter_macro___;
             return result;
         }
     }

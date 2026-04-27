@@ -48,7 +48,7 @@ Macro: # 必填，宏相关定义
   DefaultFileSuffix: string # 指定默认查找的文件后缀名
   AutoDetect: boolean # 指定是否自动判断参数宏
 Registry: 
-  File: string # 指定注册表的虚拟文件名
+  File: string # 指定注册表的虚拟文件名，默认 ___RegistryFile___.ini
     Table: # 定义注册表配置
     - Target: string # 目标注册表名,如 VehicleTypes
       Start: number # 起始序号，默认1

@@ -57,7 +57,7 @@ export default class Configuration {
         this.Macro.Overrides = this.content.Macro?.Overrides ?? {};
         this.Macro.DefaultFileSuffix = this.content.Macro?.DefaultFileSuffix ?? '.ini';
         this.Macro.AutoDetect = this.content.Macro?.AutoDetect ?? false;
-        this.Registry.File = this.content.Registry?.File ?? this.content.RegistryFile ?? '___RegistryFile___';
+        this.Registry.File = this.content.Registry?.File ?? this.content.RegistryFile ?? '___RegistryFile___.ini';
         this.Registry.Table =
             Array.from(this.content.Registry?.Table ?? this.content.RegistryTable ?? []).map((object) => {
                 if (!Array.isArray(object.Source)) return null;

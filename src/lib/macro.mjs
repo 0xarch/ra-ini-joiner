@@ -252,7 +252,7 @@ export default class MacroLib {
                     // @Foo
                     target_path = target_section = key.substring(1);
                 }
-                let relative_target_path = join(dirname(path), target_path);
+                let relative_target_path = target_path !== 'this' ? join(dirname(path), target_path) : path;
                 if (this.#resourceManager.resources.has(relative_target_path)) {
                     target_path = relative_target_path;
                 } else {

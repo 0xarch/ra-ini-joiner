@@ -15,6 +15,8 @@ async function AppV2(argv = process.argv) {
     // spec-options
     console.info.when_detailed = configuration.content.IsDetailedConsole ? console.info : () => { };
     console.warn.when_detailed = configuration.content.IsDetailedConsole ? console.warn : () => { };
+    console.warn = configuration.content.PedanticErrors ? (...params) => { console.error(...params); process.exit(1); } : console.warn;
+    console.warn.when_detailed = configuration.content.PedanticErrors ? (...params) => { console.error(...params); process.exit(1); } : console.warn.when_detailed;
 
     const resourceManager = new ResourceManager();
 

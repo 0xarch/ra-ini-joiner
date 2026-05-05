@@ -11,3 +11,4 @@
 *   `IgnoreFiles`：忽略的文件，此路径数组均相对于工作目录
 *   `ExplicitRequiredFiles`：显式要求索引的文件，此路径数组均相对于工作目录
 *   `IsDetailedConsole`：显示更多输出
+*   `PedanticErrors`：将警告视为错误

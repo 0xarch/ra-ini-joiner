@@ -275,7 +275,16 @@ export default class MacroLib {
                 if (!Array.isArray(parameters)) {
                     parameters = String(parameters).split(',');
                 }
-                insert_section = insert_section(...parameters);
+                if(insert_section.requestDetails) {
+                    let details = {
+                        path,
+                        section,
+                        section_name,
+                        key
+                    };
+                    insert_section = insert_section(details, ...parameters);
+                } else
+                    insert_section = insert_section(...parameters);
             } else {
                 console.info(`[MCPS] 检测到不寻常的问题：insert_section is not a function. CodeMCPS_1`);
             }

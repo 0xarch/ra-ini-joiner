@@ -77,3 +77,7 @@ YAML同理。但注意：YAML不支持伪数组写法，因为这本质上是因
 ### 使用 JavaScript 作为宏
 
 JavaScript 宏是一种基于ES Module机制的功能。你可以使用 `.mjs` 或 `.js` 文件作为 JavaScript 宏文件，这些文件强制拒绝被输出。你需要为每个 JavaScript 宏文件定义至少一个导出来使他们可用，此时 `文件名:小节名` 等同于 `文件名:函数名`，而 `default` 本身则被额外映射为`文件名:文件名`，这意味着可以简单地使用`@文件名`来使用。JavaScript宏接受的参数和参数宏相同，但通过展开传递，这意味着你通常需要使用`...parameters`来捕获所有参数。
+
+#### 在 JavaScript 中捕获细节
+
+通过为导出的函数对象设置一个额外的属性 `requestDetails`，解析器将在运行函数时向参数头部插入一个对象，该对象包含了 `path` `section` `section_name` `key` 四个值，分别为文件位置、该小节(`object`)、小节名称、调用键名。原有的参数不受影响，你需要使用 `details, ...parameters` 来按语义捕获新参数。

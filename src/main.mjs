@@ -66,6 +66,9 @@ async function AppV2(argv = process.argv) {
     })()));
     console.info(`[MAIN] 成功解析了 ${resourceManager.resources.size} 个文件，其中 ${output_file_count} 个文件将不会被输出.`);
 
+    // SORT OR DIE!
+    resourceManager.resources = new Map([...resourceManager.resources.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+
     console.info.when_detailed(`[MAIN] 开始处理宏.`);
     let macroLib = new MacroLib(configuration, resourceManager);
     await macroLib.resolve_all();

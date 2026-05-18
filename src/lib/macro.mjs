@@ -26,6 +26,10 @@ export default class MacroLib {
     init_macro(path, name) {
         let file_content = this.#resourceManager.get(path);
         let section = file_content.content[name];
+        if(!section) {
+            console.error(`未预期的错误： 尝试读取 ${path}:${name} ，但其是未定义或无法加载的。`);
+            process.exit(11);
+        }
         let section_keys = Object.keys(section);
         let section_values = Object.values(section);
 
@@ -146,7 +150,7 @@ export default class MacroLib {
                             });
                         }
                     });
-                    keys = keys.slice(min - 1, max - 1);
+                    keys = keys.slice(min - 1, max);
                     keys.forEach(key => {
                         result[key] = value_sequences[key_i](parameters);
                     })
@@ -211,7 +215,7 @@ export default class MacroLib {
             return;
         }
         const section = this.#resourceManager.get(path).content[section_name];
-        if (section.___skip_resolve___) {
+        if (!section || section.___skip_resolve___) {
             console.info.when_detailed(`[MCPS] 小节 ${path}:${section_name} 包含有 ___skip_resolve___，将跳过宏解析.`);
             return;
         }

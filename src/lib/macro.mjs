@@ -26,7 +26,7 @@ export default class MacroLib {
     init_macro(path, name) {
         let file_content = this.#resourceManager.get(path);
         let section = file_content.content[name];
-        if(!section) {
+        if (!section) {
             console.error(`未预期的错误： 尝试读取 ${path}:${name} ，但其是未定义或无法加载的。`);
             process.exit(11);
         }
@@ -42,7 +42,7 @@ export default class MacroLib {
             }
 
         if (is_simple_macro) {
-            return function (...parameters) {
+            let dealer = function (...parameters) {
                 let result = section;
                 if (typeof section === 'function') result = section(...parameters);
                 delete result.___dontexportme___;
@@ -50,6 +50,10 @@ export default class MacroLib {
                 delete result.___parameter_macro___;
                 return result;
             }
+            if (typeof section === 'function' && section.requestDetails) {
+                dealer.requestDetails = section.requestDetails;
+            }
+            return dealer;
         }
         let key_sequences = [[]];
         let i = -1, key_sequence_flag = 0;
@@ -279,7 +283,7 @@ export default class MacroLib {
                 if (!Array.isArray(parameters)) {
                     parameters = String(parameters).split(',');
                 }
-                if(insert_section.requestDetails) {
+                if (insert_section.requestDetails) {
                     let details = {
                         path,
                         section,
